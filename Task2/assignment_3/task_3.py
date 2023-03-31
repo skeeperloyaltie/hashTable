@@ -1,47 +1,54 @@
 import time
+def hash_table(size):
+    table = [None] * size
 
-class HashTable:
-    def __init__(self, size):
-        self.size = size
-        self.table = [None] * self.size
+    def hash_func(key):
+        return key % size
 
-    def hash(self, key):
-        return key % self.size
-
-    def linear_probe(self, key):
-        index = self.hash(key)
-        while self.table[index] is not None:
-            index = (index + 1) % self.size
+    def linear_probe(key):
+        index = hash_func(key)
+        while table[index] is not None:
+            index = (index + 1) % size
         return index
 
-    def quadratic_probe(self, key):
-        index = self.hash(key)
+    def quadratic_probe(key):
+        index = hash_func(key)
         i = 1
-        while self.table[index] is not None:
-            index = (index + i**2) % self.size
+        while table[index] is not None:
+            index = (index + i**2) % size
             i += 1
         return index
 
-    def double_hash(self, key):
-        index = self.hash(key)
+    def double_hash(key):
+        index = hash_func(key)
         hash2 = 7 - (key % 7)
-        while self.table[index] is not None:
-            index = (index + hash2) % self.size
+        while table[index] is not None:
+            index = (index + hash2) % size
         return index
 
-    def insert(self, key):
-        index = self.quadratic_probe(key)
-        self.table[index] = key
+    def insert(key):
+        index = quadratic_probe(key)
+        table[index] = key
 
-    def search(self, key):
-        index = self.hash(key)
+    def search(key):
+        index = hash_func(key)
         i = 0
-        while self.table[index] is not None:
-            if self.table[index] == key:
+        while table[index] is not None:
+            if table[index] == key:
                 return index
-            index = (index + i**2) % self.size
+            index = (index + i**2) % size
             i += 1
         return None
+
+    return {
+        'table': table,
+        'hash_func': hash_func,
+        'linear_probe': linear_probe,
+        'quadratic_probe': quadratic_probe,
+        'double_hash': double_hash,
+        'insert': insert,
+        'search': search,
+    }
 
 
 def test_hash_table():
@@ -49,17 +56,17 @@ def test_hash_table():
     keys = [i for i in range(10001)]
 
     for size in sizes:
-        table = HashTable(size)
+        table = hash_table(size)
 
         start_time = time.time()
         for key in keys:
-            table.insert(key)
+            table['insert'](key)
         end_time = time.time()
 
         probe_lengths = []
         num_collisions = 0
         for key in keys:
-            index = table.search(key)
+            index = table['search'](key)
             probe_lengths.append(index % size)
             if index is None:
                 num_collisions += 1
@@ -73,24 +80,30 @@ def test_hash_table():
         probe_lengths = []
         num_collisions = 0
         for key in keys:
-            index = table.quadratic_probe(key)
+            index = table['quadratic_probe'](key)
             probe_lengths.append(index % size)
-            if table.table[index] is not None:
+            if table['table'][index] is not None:
                 num_collisions += 1
-            table.table[index] = key
+            table['table'][index] = key
 
         print("{:<20} {:<20.2f} {:<20}".format("Quadratic Probing", sum(probe_lengths)/len(probe_lengths), num_collisions))
 
         probe_lengths = []
         num_collisions = 0
         for key in keys:
-            index = table.double_hash(key)
+            index = table['double_hash'](key)
             probe_lengths.append(index % size)
-            if table.table[index] is not None:
+            if table['table'][index] is not None:
                 num_collisions += 1
-            table.table[index] = key
+            table['table'][index] = key
 
         print("{:<20} {:<20.2f} {:<20}".format("Double Hashing", sum(probe_lengths)/len(probe_lengths), num_collisions))
         print("\n")
 
-test_hash_table()
+def main():
+    test_hash_table()
+
+
+if __name__ == '__main__':
+    main()
+

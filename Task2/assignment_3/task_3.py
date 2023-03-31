@@ -1,109 +1,93 @@
 import time
-def hash_table(size):
-    table = [None] * size
+import random
+class HashTable:
+    def __init__(self, size):
+        self.size = size
+        self.slots = [None] * self.size
+        self.data = [None] * self.size
 
-    def hash_func(key):
+    def put(self, key, data):
+        hashvalue = self.hashfunction(key, self.size)
+
+        if self.slots[hashvalue] == None:
+            self.slots[hashvalue] = key
+            self.data[hashvalue] = data
+        else:
+            if self.slots[hashvalue] == key:
+                self.data[hashvalue] = data  # replace
+            else:
+                # collision occurred, probe using quadratic probing
+                nextslot = self.rehash_quadratic(hashvalue, self.size)
+                while self.slots[nextslot] != None and self.slots[nextslot] != key:
+                    nextslot = self.rehash_quadratic(nextslot, self.size)
+
+                if self.slots[nextslot] == None:
+                    self.slots[nextslot] = key
+                    self.data[nextslot] = data
+                else:
+                    self.data[nextslot] = data  # replace
+
+    def get(self, key):
+        startslot = self.hashfunction(key, self.size)
+
+        data = None
+        stop = False
+        found = False
+        position = startslot
+        while self.slots[position] != None and not found and not stop:
+            if self.slots[position] == key:
+                found = True
+                data = self.data[position]
+            else:
+                position = self.rehash_quadratic(position, self.size)
+                if position == startslot:
+                    stop = True
+        return data
+
+    def hashfunction(self, key, size):
         return key % size
 
-    def linear_probe(key):
-        index = hash_func(key)
-        while table[index] is not None:
-            index = (index + 1) % size
-        return index
+    def rehash_linear(self, oldhash, size):
+        return (oldhash + 1) % size
 
-    def quadratic_probe(key):
-        index = hash_func(key)
-        i = 1
-        while table[index] is not None:
-            index = (index + i**2) % size
-            i += 1
-        return index
+    def rehash_quadratic(self, oldhash, size):
+        return (oldhash + 1**2) % size
 
-    def double_hash(key):
-        index = hash_func(key)
-        hash2 = 7 - (key % 7)
-        while table[index] is not None:
-            index = (index + hash2) % size
-        return index
+    def rehash_double(self, oldhash, size):
+        return (oldhash + self.hashfunction2(key, size)) % size
 
-    def insert(key):
-        index = quadratic_probe(key)
-        table[index] = key
+    def hashfunction2(self, key, size):
+        return 7 - (key % 7)
 
-    def search(key):
-        index = hash_func(key)
-        i = 0
-        while table[index] is not None:
-            if table[index] == key:
-                return index
-            index = (index + i**2) % size
-            i += 1
-        return None
+keys = [random.randint(1, 10000) for i in range(1000)]
+data = [random.randint(1, 10000) for i in range(1000)]
 
-    return {
-        'table': table,
-        'hash_func': hash_func,
-        'linear_probe': linear_probe,
-        'quadratic_probe': quadratic_probe,
-        'double_hash': double_hash,
-        'insert': insert,
-        'search': search,
-    }
+linear_probing = HashTable(1000)
+quadratic_probing = HashTable(1000)
+double_hashing = HashTable(1000)
 
+for i in range(len(keys)):
+    linear_probing.put(keys[i], data[i])
+    quadratic_probing.put(keys[i], data[i])
+    double_hashing.put(keys[i], data[i])
 
-def test_hash_table():
-    sizes = [100, 1000, 10000]
-    keys = [i for i in range(10001)]
+# calculate the number of collisions for each method
+linear_collisions = sum([1 for slot in linear_probing.slots if slot != None]) - len(set(linear_probing.slots)) + 1
+quadratic_collisions = sum([1 for slot in quadratic_probing.slots if slot != None]) - len(set(quadratic_probing.slots)) + 1
+double_collisions = sum([1 for slot in double_hashing.slots if slot != None]) - len(set(double_hashing.slots)) + 1
 
-    for size in sizes:
-        table = hash_table(size)
+# calculate the average probe length for each method
+linear_probes = sum([len(list(linear_probing.slots)[:linear_probing.slots.index(None)]) for i in range(len(linear_probing.slots)) if linear_probing.slots[i] != None]) / len(keys)
+quadratic_probes = sum([len(list(quadratic_probing.slots)[:quadratic_probing.slots.index(None)]) for i in range(len(quadratic_probing.slots)) if quadratic_probing.slots[i] != None]) / len(keys)
+double_probes = sum([len(list(double_hashing.slots)[:double_hashing.slots.index(None)]) for i in range(len(double_hashing.slots)) if double_hashing.slots[i] != None]) / len(keys)
 
-        start_time = time.time()
-        for key in keys:
-            table['insert'](key)
-        end_time = time.time()
-
-        probe_lengths = []
-        num_collisions = 0
-        for key in keys:
-            index = table['search'](key)
-            probe_lengths.append(index % size)
-            if index is None:
-                num_collisions += 1
-
-        print(f"Hash Table Size: {size}")
-        print(f"Time Taken: {end_time - start_time:.6f} seconds")
-        print("{:<20} {:<20} {:<20}".format("Hash Type", "Probe Length", "Collisions"))
-        print("-" * 60)
-        print("{:<20} {:<20.2f} {:<20}".format("Linear Probing", sum(probe_lengths)/len(probe_lengths), num_collisions))
-
-        probe_lengths = []
-        num_collisions = 0
-        for key in keys:
-            index = table['quadratic_probe'](key)
-            probe_lengths.append(index % size)
-            if table['table'][index] is not None:
-                num_collisions += 1
-            table['table'][index] = key
-
-        print("{:<20} {:<20.2f} {:<20}".format("Quadratic Probing", sum(probe_lengths)/len(probe_lengths), num_collisions))
-
-        probe_lengths = []
-        num_collisions = 0
-        for key in keys:
-            index = table['double_hash'](key)
-            probe_lengths.append(index % size)
-            if table['table'][index] is not None:
-                num_collisions += 1
-            table['table'][index] = key
-
-        print("{:<20} {:<20.2f} {:<20}".format("Double Hashing", sum(probe_lengths)/len(probe_lengths), num_collisions))
-        print("\n")
-
-def main():
-    test_hash_table()
-
-
-if __name__ == '__main__':
-    main()
-
+# print the results
+print("Number of collisions:")
+print("Linear probing:", linear_collisions)
+print("Quadratic probing:", quadratic_collisions)
+print("Double hashing:", double_collisions)
+print()
+print("Average probe length:")
+print("Linear probing:", linear_probes)
+print("Quadratic probing:", quadratic_probes)
+print("Double hashing:", double_probes)
